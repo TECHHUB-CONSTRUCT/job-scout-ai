@@ -69,3 +69,8 @@ def accueil():
 
 # Le 'if __name__ == '__main__':' n'est pas nécessaire pour la production sur Render
 # mais utile pour les tests locaux.
+# Dans app.py, ajoutez cette nouvelle route
+
+@app.route('/privacy')
+def privacy():
+    return render_template('privacy.html')
