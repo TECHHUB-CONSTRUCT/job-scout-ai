@@ -4,6 +4,9 @@ venv/
 # Fichiers de configuration sensibles
 config.json
 
+# Fichiers de configuration sensibles
+users.json
+
 # Fichiers temporaires Python
 __pycache__/
 *.pyc

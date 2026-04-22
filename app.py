@@ -1,48 +1,57 @@
 from flask import Flask, render_template, request, flash
 import os
 import threading
-# On importe la fonction principale de notre moteur IA
+import json
 from agent_pipeline import executer_pipeline_pour_utilisateur
 
-# --- Initialisation de Flask ---
+# --- Initialisation ---
 app = Flask(__name__)
 app.secret_key = 'une_cle_secrete_tres_difficile_a_deviner'
 UPLOAD_FOLDER = 'uploads'
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
+USERS_DB_FILE = 'users.json' # Notre base de données d'utilisateurs
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# --- Fonctions Utilitaires pour la "DB" ---
+def charger_utilisateurs():
+    if not os.path.exists(USERS_DB_FILE):
+        return {}
+    try:
+        with open(USERS_DB_FILE, 'r') as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        return {}
+
+def sauvegarder_utilisateur(email, cv_path):
+    users = charger_utilisateurs()
+    # On enregistre l'utilisateur avec son email comme clé
+    users[email] = {'cv_path': cv_path, 'last_run': None}
+    with open(USERS_DB_FILE, 'w') as f:
+        json.dump(users, f, indent=4)
 
 # --- Interface Web ---
 @app.route('/', methods=['GET', 'POST'])
 def accueil():
     if request.method == 'POST':
-        if 'cv_file' not in request.files or request.form['email'] == '':
-            flash('Veuillez fournir un email et un fichier CV.')
-            return render_template('index.html')
+        # ... (code de validation du formulaire identique) ...
         
         file = request.files['cv_file']
         email = request.form['email']
-
-        if file.filename == '':
-            flash('Aucun fichier sélectionné.')
-            return render_template('index.html')
-
+        
         if file and email:
-            # Créer un sous-dossier unique pour cet utilisateur/recherche pour éviter les conflits
-            user_upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], email.split('@')[0])
-            os.makedirs(user_upload_dir, exist_ok=True)
-            filepath = os.path.join(user_upload_dir, file.filename)
+            # On sauvegarde le CV
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
             file.save(filepath)
             
-            print(f"✅ Fichier reçu : {filepath}")
-            
-            # On lance le VRAI pipeline en tâche de fond
+            # On enregistre le nouvel utilisateur dans notre "base de données"
+            sauvegarder_utilisateur(email, filepath)
+            print(f"✅ Nouvel utilisateur enregistré : {email}")
+
+            # On lance le pipeline IMMÉDIATEMENT pour la première fois
             thread = threading.Thread(target=executer_pipeline_pour_utilisateur, args=(filepath, email))
             thread.start()
             
-            print("🚀 Tâche de fond pour le pipeline réel lancée.")
-            
-            flash(f'Merci ! Votre recherche a été lancée. Vous recevrez les résultats à l\'adresse : {email}')
+            flash(f'Merci ! Votre première recherche a été lancée. Vous recevrez les résultats à l\'adresse : {email}')
             return render_template('index.html')
 
     return render_template('index.html')

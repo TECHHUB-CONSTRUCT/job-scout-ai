@@ -1,5 +1,7 @@
 # =============================================================================
-# MOTEUR DE L'AGENT IA - PIPELINE COMPLET (v2 - Corrigé)
+# MOTEUR DE L'AGENT IA - PIPELINE COMPLET (v3 - Prêt pour le Cloud)
+# Ce fichier contient toute la logique de traitement et lit les secrets
+# de l'environnement ou du fichier de configuration.
 # =============================================================================
 
 import os
@@ -14,7 +16,6 @@ from datetime import datetime
 import pdfplumber
 from docx import Document
 import spacy
-from spacy.matcher import Matcher
 from serpapi import GoogleSearch
 
 # --- Configuration Globale ---
@@ -28,7 +29,7 @@ except OSError:
 
 
 # =============================================================================
-# FONCTIONS UTILITAIRES (LA CORRECTION EST ICI)
+# FONCTIONS UTILITAIRES
 # =============================================================================
 
 def charger_json(filename, default_value=None):
@@ -70,7 +71,6 @@ def extraire_texte(chemin_fichier):
 
 def construire_profil_candidat(texte_cv):
     if not SPACY_LOADED: return {"mots_cles_recherche": ["IT", "developer", "technician"]}
-
     mots_cles_recherche = [
         "IT Support", "Technicien Informatique", "Administrateur Système", "Network Administrator",
         "Help Desk", "IT Officer", "ICT Specialist", "Support Technique"
@@ -85,7 +85,7 @@ def construire_profil_candidat(texte_cv):
 def recuperer_offres(profil, config):
     api_key = config.get("serpapi_key")
     if not api_key:
-        print("   ❌ Clé API 'serpapi_key' non trouvée dans config.json")
+        print("   ❌ Clé API 'serpapi_key' non trouvée.")
         return []
 
     lieux = {"France": "fr", "Canada": "ca", "Belgique": "be", "Suisse": "ch"}
@@ -124,7 +124,6 @@ def recuperer_offres(profil, config):
 
 def analyser_et_noter_offres(offres, texte_cv):
     if not texte_cv: return offres
-
     competences_generiques = [
         "réseau", "support", "windows", "linux", "cisco", "firewall", "sécurité",
         "helpdesk", "ticketing", "itil", "scripting", "python", "powershell",
@@ -134,24 +133,19 @@ def analyser_et_noter_offres(offres, texte_cv):
     
     texte_cv_lower = texte_cv.lower()
     offres_analysees = []
-
     for offre in offres:
         score = 0
         description = (offre.get("description") or "").lower()
-        
         for comp in competences_generiques:
             if comp in description: score += 10
-        
         for mot_cv in texte_cv_lower.split():
             if len(mot_cv) > 3 and mot_cv in description: score += 1
-
         offre['score_pertinence'] = score
         offres_analysees.append(offre)
-
     return sorted(offres_analysees, key=lambda x: x['score_pertinence'], reverse=True)
 
 # =============================================================================
-# ÉTAPE 5 : RAPPORT PAR E-MAIL (VRAI CODE D'ENVOI)
+# ÉTAPE 5 : RAPPORT PAR E-MAIL
 # =============================================================================
 
 def formater_email_html(offres):
@@ -159,12 +153,13 @@ def formater_email_html(offres):
     <html><head><style>
         body { font-family: sans-serif; line-height: 1.6; color: #333; }
         .container { max-width: 800px; margin: 20px auto; border: 1px solid #ddd; border-radius: 8px; }
-        .header { background-color: #4285F4; color: white; padding: 20px; text-align: center; }
+        .header { background-color: #0056b3; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
         .offre { padding: 15px; border-bottom: 1px solid #eee; }
-        .offre h2 a { text-decoration: none; color: #1a0dab; }
+        .offre:last-child { border-bottom: none; }
+        .offre h2 a { text-decoration: none; color: #0056b3; }
         .score { background-color: #f2f2f2; padding: 5px 10px; border-radius: 4px; font-weight: bold; }
     </style></head><body><div class="container">
-        <div class="header"><h1>🤖 Votre Rapport d'Emploi IA</h1>
+        <div class="header"><h1>Job Scout AI par TechHub Construct</h1>
         <p>""" + datetime.now().strftime("%d %B %Y") + """</p></div>
     """
     if not offres:
@@ -175,7 +170,7 @@ def formater_email_html(offres):
                 <div class="offre">
                     <h2><a href="{offre.get('lien', '#')}">{offre.get('titre', 'N/A')}</a></h2>
                     <p><b>{offre.get('entreprise', 'N/A')}</b> - <i>{offre.get('lieu_annonce', 'N/A')}</i></p>
-                    <p><span class="score">Score : {offre.get('score_pertinence', 0)}</span></p>
+                    <p><span class="score">Score de Pertinence : {offre.get('score_pertinence', 0)}</span></p>
                 </div>
             """
     html += "</div></body></html>"
@@ -184,17 +179,15 @@ def formater_email_html(offres):
 def envoyer_rapport_email(offres, config, email_destinataire):
     expediteur = config.get("email_expediteur")
     mot_de_passe = config.get("email_mot_de_passe_app")
-
     if not all([expediteur, mot_de_passe, email_destinataire]):
         print("   ❌ Informations d'email manquantes (expéditeur, mot de passe, destinataire).")
         return False
 
-    sujet = f"🤖 Votre Top {len(offres)} des Offres d'Emploi du Jour"
+    sujet = f"🤖 Votre Rapport d'Offres d'Emploi - {datetime.now().strftime('%d/%m/%Y')}"
     corps_html = formater_email_html(offres)
-    
     msg = MIMEMultipart('alternative')
     msg['Subject'] = sujet
-    msg['From'] = expediteur
+    msg['From'] = f"Job Scout AI <{expediteur}>"
     msg['To'] = email_destinataire
     msg.attach(MIMEText(corps_html, 'html'))
 
@@ -219,6 +212,7 @@ def executer_pipeline_pour_utilisateur(chemin_cv, email_utilisateur):
     print(f"🤖 DÉBUT DU PIPELINE pour : {email_utilisateur}")
     print(f"📄 Fichier CV : {chemin_cv}")
     
+    # --- Étape 1 : Lire le CV et construire le profil ---
     print("   [1/4] Analyse du CV...")
     texte_cv = extraire_texte(chemin_cv)
     if not texte_cv:
@@ -227,21 +221,41 @@ def executer_pipeline_pour_utilisateur(chemin_cv, email_utilisateur):
     profil = construire_profil_candidat(texte_cv)
     print(f"   ✅ Profil créé avec {len(profil['mots_cles_recherche'])} mots-clés.")
 
+    # --- Étape 2 : Charger la configuration et récupérer les offres ---
     print("   [2/4] Récupération des offres via API...")
-    config = charger_json("config.json")
-    if not config:
-        print("   ❌ Échec : Fichier config.json introuvable.")
+
+    # === MODIFICATION POUR LIRE LES SECRETS ===
+    # On essaie d'abord de lire depuis les variables d'environnement (pour GitHub Actions)
+    # Sinon, on lit depuis le fichier config.json (pour le test local)
+    config = {
+        "serpapi_key": os.environ.get('SERPAPI_KEY'),
+        "email_expediteur": os.environ.get('EMAIL_SENDER'),
+        "email_mot_de_passe_app": os.environ.get('EMAIL_PASSWORD')
+    }
+    if not config["serpapi_key"]:
+        print("   -> Secrets non trouvés dans l'environnement, lecture de config.json...")
+        config_from_file = charger_json("config.json")
+        if config_from_file:
+            config.update(config_from_file) # On met à jour avec ce qui vient du fichier
+    # =========================================
+    
+    if not config.get("serpapi_key"):
+        print("   ❌ Échec : Configuration API/email introuvable.")
         return
+
     offres_brutes = recuperer_offres(profil, config)
     print(f"   ✅ {len(offres_brutes)} offres brutes récupérées.")
     if not offres_brutes:
-        print("   ⚠️ Aucune offre trouvée, fin du pipeline.")
+        print("   ⚠️ Aucune offre trouvée, envoi d'un email de notification.")
+        envoyer_rapport_email([], config, email_utilisateur)
         return
 
+    # --- Étape 4 : Analyser et noter les offres ---
     print("   [3/4] Analyse et calcul des scores...")
     offres_notees = analyser_et_noter_offres(offres_brutes, texte_cv)
     print("   ✅ Offres notées et triées.")
     
+    # --- Étape 5 : Préparer et envoyer l'e-mail ---
     print("   [4/4] Préparation et envoi du rapport par e-mail...")
     top_10_offres = offres_notees[:10]
     envoyer_rapport_email(top_10_offres, config, email_utilisateur)
