@@ -1,0 +1,15 @@
+# Environnement virtuel
+venv/
+
+# Fichiers de configuration sensibles
+config.json
+
+# Fichiers temporaires Python
+__pycache__/
+*.pyc
+
+# Fichiers uploadés
+uploads/
+
+# Fichiers de l'éditeur
+.vscode/

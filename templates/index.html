@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Scout AI par TechHub Construct</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f4f7f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 500px; text-align: center; }
+        .logo { max-width: 250px; margin-bottom: 20px; }
+        h1 { color: #333; }
+        p { color: #666; }
+        form { display: flex; flex-direction: column; gap: 20px; margin-top: 30px; }
+        input[type="email"], input[type="file"] { padding: 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; }
+        button { background-color: #0056b3; color: white; border: none; padding: 15px; border-radius: 8px; font-size: 18px; cursor: pointer; transition: background-color 0.3s; }
+        button:hover { background-color: #004494; }
+        .flash { background-color: #e7f4e8; color: #4caf50; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #a5d6a7; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <!-- Ajout du logo -->
+        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo TechHub Construct" class="logo">
+        
+        <h1>Job Scout AI</h1>
+        <p>Notre intelligence artificielle analyse votre CV et parcourt le web pour vous trouver les offres d'emploi qui vous correspondent vraiment.</p>
+        
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            <div class="flash">
+              {{ messages[0] }}
+            </div>
+          {% endif %}
+        {% endwith %}
+
+        <form method="post" enctype="multipart/form-data">
+            <input type="email" name="email" placeholder="Votre adresse email" required>
+            <input type="file" name="cv_file" accept=".pdf,.doc,.docx" required>
+            <button type="submit">Lancer ma recherche gratuite</button>
+        </form>
+    </div>
+</body>
+</html>
