@@ -1,5 +1,5 @@
 # =============================================================================
-# MOTEUR DE L'AGENT IA - PIPELINE COMPLET (v4 - Intégration Cameroun)
+# MOTEUR DE L'AGENT IA - PIPELINE COMPLET (v5 - Lazy Import Playwright)
 # =============================================================================
 
 import os
@@ -15,8 +15,7 @@ import pdfplumber
 from docx import Document
 import spacy
 from serpapi import GoogleSearch
-# On ajoute les imports pour Playwright qui sera utilisé pour le scraping local
-from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
+# ATTENTION : L'import de Playwright a été retiré d'ici !
 
 # --- Configuration Globale ---
 try:
@@ -63,16 +62,13 @@ def construire_profil_candidat(texte_cv):
         "IT Support", "Technicien Informatique", "Administrateur Système", "Network Administrator",
         "Help Desk", "IT Officer", "ICT Specialist", "Support Technique", "Informatique", "Réseaux"
     ]
-    # Si on a le CV, on peut essayer d'ajouter quelques mots-clés spécifiques
     if texte_cv and SPACY_LOADED:
         doc = nlp(texte_cv)
-        # Exemple simple d'extraction : on ajoute les noms propres de plus de 3 lettres
         ents = [ent.text for ent in doc.ents if ent.label_ == "ORG" or ent.label_ == "MISC"]
         for ent in ents:
             if len(ent) > 3 and ent not in mots_cles_recherche:
                 mots_cles_recherche.append(ent)
-                
-    profil = {"mots_cles_recherche": list(set(mots_cles_recherche))[:10]} # Limite à 10 pour ne pas abuser de l'API
+    profil = {"mots_cles_recherche": list(set(mots_cles_recherche))[:10]}
     return profil
 
 # =============================================================================
@@ -81,6 +77,12 @@ def construire_profil_candidat(texte_cv):
 
 def scraper_emploi_cm(mots_cles):
     """Scrape le site emploi.cm en utilisant Playwright."""
+    # === IMPORT PARESSEUX (LAZY IMPORT) ===
+    # On importe Playwright UNIQUEMENT à l'intérieur de cette fonction.
+    # Cela évite que le site web Flask plante au démarrage sur Render.
+    from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeoutError
+    # ======================================
+    
     print("      -> Démarrage du scraper pour emploi.cm...")
     offres_locales = []
     ids_vus = set()
@@ -112,7 +114,7 @@ def scraper_emploi_cm(mots_cles):
                                 "id": offre_id,
                                 "titre": card.locator('div.job-item-title h3').inner_text().strip(),
                                 "entreprise": card.locator('div.job-item-company').inner_text().strip(),
-                                "lieu_annonce": "Cameroun", # On force le lieu
+                                "lieu_annonce": "Cameroun",
                                 "description": card.locator('div.job-item-description').inner_text().strip(),
                                 "source": "emploi.cm",
                                 "lien": offre_id
@@ -120,7 +122,7 @@ def scraper_emploi_cm(mots_cles):
                             offres_locales.append(offre)
                             ids_vus.add(offre_id)
                 except PlaywrightTimeoutError:
-                    pass # Pas d'offres, on continue silencieusement
+                    pass
                 except Exception as e:
                     print(f"         - Erreur scraping emploi.cm pour '{mot_cle}': {e}")
             browser.close()
@@ -176,11 +178,10 @@ def recuperer_offres(profil, config):
     return toutes_les_offres
 
 # =============================================================================
-# ÉTAPE 4 ET 5 : ANALYSE ET RAPPORT (code identique aux versions précédentes)
+# ÉTAPE 4 ET 5 : ANALYSE ET RAPPORT
 # =============================================================================
 
 def analyser_et_noter_offres(offres, texte_cv):
-    # ... (code identique) ...
     competences_generiques = ["réseau", "support", "windows", "linux", "cisco", "firewall", "sécurité", "helpdesk", "ticketing", "itil", "scripting", "python", "powershell", "ad", "active directory", "office 365", "azure", "vmware", "hyper-v", "backup", "sauvegarde", "tcp/ip", "dns", "dhcp"]
     offres_analysees = []
     for offre in offres:
@@ -195,7 +196,6 @@ def analyser_et_noter_offres(offres, texte_cv):
     return sorted(offres_analysees, key=lambda x: x['score_pertinence'], reverse=True)
 
 def formater_email_html(offres):
-    # ... (code identique) ...
     html = """<html><head><style>body { font-family: sans-serif; line-height: 1.6; color: #333; } .container { max-width: 800px; margin: 20px auto; border: 1px solid #ddd; border-radius: 8px; } .header { background-color: #0056b3; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; } .offre { padding: 15px; border-bottom: 1px solid #eee; } .offre:last-child { border-bottom: none; } .offre h2 a { text-decoration: none; color: #0056b3; } .score { background-color: #f2f2f2; padding: 5px 10px; border-radius: 4px; font-weight: bold; }</style></head><body><div class="container"><div class="header"><h1>Job Scout AI par TechHub Construct</h1><p>""" + datetime.now().strftime("%d %B %Y") + """</p></div>"""
     if not offres: html += "<div class='offre'><p>Aucune nouvelle offre pertinente trouvée aujourd'hui. Nous chercherons à nouveau demain !</p></div>"
     else:
@@ -204,7 +204,6 @@ def formater_email_html(offres):
     return html
 
 def envoyer_rapport_email(offres, config, email_destinataire):
-    # ... (code identique) ...
     expediteur = config.get("email_expediteur"); mot_de_passe = config.get("email_mot_de_passe_app")
     if not all([expediteur, mot_de_passe, email_destinataire]): print("   ❌ Infos email manquantes."); return False
     sujet = f"🤖 Votre Rapport d'Offres d'Emploi - {datetime.now().strftime('%d/%m/%Y')}"; corps_html = formater_email_html(offres)
@@ -216,7 +215,7 @@ def envoyer_rapport_email(offres, config, email_destinataire):
     except Exception as e: print(f"   ❌ Échec de l'envoi : {e}"); return False
 
 # =============================================================================
-# LE PIPELINE PRINCIPAL (LOGIQUE INCHANGÉE)
+# LE PIPELINE PRINCIPAL
 # =============================================================================
 
 def executer_pipeline_pour_utilisateur(chemin_cv, email_utilisateur):
