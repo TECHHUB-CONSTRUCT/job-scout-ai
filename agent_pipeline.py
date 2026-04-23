@@ -68,7 +68,7 @@ def construire_profil_candidat(texte_cv):
         for ent in ents:
             if len(ent) > 3 and ent not in mots_cles_recherche:
                 mots_cles_recherche.append(ent)
-    profil = {"mots_cles_recherche": list(set(mots_cles_recherche))[:10]}
+    profil = {"mots_cles_recherche": list(set(mots_cles_recherche))[:4]}
     return profil
 
 # =============================================================================
@@ -138,7 +138,7 @@ def recuperer_offres(profil, config):
         print("   ❌ Clé API 'serpapi_key' non trouvée.")
         return []
 
-    lieux_api = {"France": "fr", "Canada": "ca", "Belgique": "be", "Suisse": "ch", "Cameroun": "cm"}
+    lieux_api = {"France": "fr", "Canada": "ca", "Cameroun": "cm"}
     mots_cles = profil["mots_cles_recherche"]
     toutes_les_offres = []
     offres_ids_vus = set()
